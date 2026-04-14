@@ -1,0 +1,389 @@
+{
+    "name": "pl_ingest_sqlserver_to_bronze",
+    "properties": {
+        "activities": [
+            {
+                "name": "ForEach to copy sql server tables",
+                "type": "ForEach",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@pipeline().parameters.TableList",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Copy data from onPremise to azure sql",
+                            "description": "copy tables from on premise sql server using SHIR to Azure SQL source",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "SqlServerSource",
+                                    "queryTimeout": "02:00:00",
+                                    "partitionOption": "None"
+                                },
+                                "sink": {
+                                    "type": "AzureSqlSink",
+                                    "preCopyScript": {
+                                        "value": "DELETE FROM bronze.@{item().tablename}",
+                                        "type": "Expression"
+                                    },
+                                    "writeBehavior": "insert",
+                                    "sqlWriterUseTableLock": false
+                                },
+                                "enableStaging": false,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_source_sql_server",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "SchemaName": {
+                                            "value": "@item().schemaname",
+                                            "type": "Expression"
+                                        },
+                                        "TableName": {
+                                            "value": "@item().tablename",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_azure_sql_source_database",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "TableName": {
+                                            "value": "@item().tablename",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "If Condition to enable incremmental load",
+                            "type": "IfCondition",
+                            "dependsOn": [
+                                {
+                                    "activity": "Lookup records in target",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "expression": {
+                                    "value": "@equals(activity('Lookup records in target').output.firstRow.rows_count, 0)",
+                                    "type": "Expression"
+                                },
+                                "ifFalseActivities": [
+                                    {
+                                        "name": "Execute Pipeline to copy incrementally",
+                                        "type": "ExecutePipeline",
+                                        "dependsOn": [],
+                                        "policy": {
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "pipeline": {
+                                                "referenceName": "pl_check_and_delete_rowsUpdated",
+                                                "type": "PipelineReference"
+                                            },
+                                            "waitOnCompletion": true,
+                                            "parameters": {
+                                                "tablename": {
+                                                    "value": "@item().tablename",
+                                                    "type": "Expression"
+                                                },
+                                                "timestampColumn": {
+                                                    "value": "@item().timestampColumn",
+                                                    "type": "Expression"
+                                                },
+                                                "keyColumn": {
+                                                    "value": "@{item().keyColumn}",
+                                                    "type": "Expression"
+                                                }
+                                            }
+                                        }
+                                    }
+                                ],
+                                "ifTrueActivities": [
+                                    {
+                                        "name": "Copy data from bronze to silver sql",
+                                        "description": "copy of tables from bronze sql source to silver sql target",
+                                        "type": "Copy",
+                                        "dependsOn": [],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "source": {
+                                                "type": "AzureSqlSource",
+                                                "sqlReaderQuery": {
+                                                    "value": "SELECT * FROM bronze.@{item().tablename}\nWHERE @{item().timestampColumn} > '@{formatDateTime(adddays(utcNow(), -14), 'yyyy-MM-ddTHH:mm:ss')}' AND @{item().timestampColumn} <= '@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ss')}'",
+                                                    "type": "Expression"
+                                                },
+                                                "queryTimeout": "02:00:00",
+                                                "partitionOption": "None"
+                                            },
+                                            "sink": {
+                                                "type": "AzureSqlSink",
+                                                "writeBehavior": "insert",
+                                                "sqlWriterUseTableLock": false
+                                            },
+                                            "enableStaging": false,
+                                            "translator": {
+                                                "type": "TabularTranslator",
+                                                "typeConversion": true,
+                                                "typeConversionSettings": {
+                                                    "allowDataTruncation": true,
+                                                    "treatBooleanAsNumber": false
+                                                }
+                                            }
+                                        },
+                                        "inputs": [
+                                            {
+                                                "referenceName": "ds_source_bronze_sql",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "TableName": {
+                                                        "value": "@item().tablename",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            }
+                                        ],
+                                        "outputs": [
+                                            {
+                                                "referenceName": "ds_target_silver_sql",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "TableName": {
+                                                        "value": "@item().tablename",
+                                                        "type": "Expression"
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "Lookup records in target",
+                            "type": "Lookup",
+                            "dependsOn": [
+                                {
+                                    "activity": "Copy data from onPremise to azure sql",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "AzureSqlSource",
+                                    "sqlReaderQuery": {
+                                        "value": "SELECT COUNT(*) AS rows_count FROM silver.@{item().tablename}",
+                                        "type": "Expression"
+                                    },
+                                    "queryTimeout": "02:00:00",
+                                    "partitionOption": "None"
+                                },
+                                "dataset": {
+                                    "referenceName": "ds_target_silver_sql",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "TableName": {
+                                            "value": "@item().tablename",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Stored procedure to update latest date_copy1",
+                            "type": "SqlServerStoredProcedure",
+                            "dependsOn": [
+                                {
+                                    "activity": "If Condition to enable incremmental load",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "storedProcedureName": "[bronze].[usp_writeWatermark]",
+                                "storedProcedureParameters": {
+                                    "last_runtime": {
+                                        "value": {
+                                            "value": "@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ss')}",
+                                            "type": "Expression"
+                                        },
+                                        "type": "DateTime"
+                                    },
+                                    "tablename": {
+                                        "value": {
+                                            "value": "@item().tablename",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    }
+                                }
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "ls_source_AzureSqlDatabase",
+                                "type": "LinkedServiceReference"
+                            }
+                        },
+                        {
+                            "name": "Copy silver table to gold adls",
+                            "type": "Copy",
+                            "dependsOn": [
+                                {
+                                    "activity": "Stored procedure to update latest date_copy1",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "AzureSqlSource",
+                                    "queryTimeout": "02:00:00",
+                                    "partitionOption": "None"
+                                },
+                                "sink": {
+                                    "type": "DelimitedTextSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSWriteSettings"
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextWriteSettings",
+                                        "quoteAllText": true,
+                                        "fileExtension": ".txt"
+                                    }
+                                },
+                                "enableStaging": false,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_silver_tables_gold",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "TableName": {
+                                            "value": "@item().tablename",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_target_gold_adls",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "Filename": {
+                                            "value": "@item().tablename",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ],
+        "parameters": {
+            "TableList": {
+                "type": "array",
+                "defaultValue": [
+                    {
+                        "schemaname": "dbo",
+                        "tablename": "COSTLIST",
+                        "timestampColumn": "LAST_UPDATED",
+                        "keyColumn": "COST_ID"
+                    },
+                    {
+                        "schemaname": "dbo",
+                        "tablename": "PRODUCING_STAT_RATIO_DETAIL",
+                        "timestampColumn": "LAST_UPDATED",
+                        "keyColumn": "RATIO_ID"
+                    },
+                    {
+                        "schemaname": "dbo",
+                        "tablename": "INVOICE_LINE_ITEM",
+                        "timestampColumn": "LAST_UPDATED",
+                        "keyColumn": "INV_LINE_ID"
+                    }
+                ]
+            }
+        },
+        "folder": {
+            "name": "Final Project"
+        },
+        "annotations": []
+    }
+}

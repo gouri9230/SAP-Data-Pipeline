@@ -1,0 +1,6 @@
+selected resource name:		pl_check_and_delete_rowsUpdated
+selected resource type:		pipeline
+factory name:			adf-azure-batch17-gouri
+factory location:		eastus
+subscription id:		fe8398e1-453a-4a54-9da5-bdc6a9e81a00
+time of download (UTC):		Sun, 12 Apr 2026 19:01:30 GMT

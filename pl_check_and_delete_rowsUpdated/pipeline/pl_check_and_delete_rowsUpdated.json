@@ -1,0 +1,179 @@
+{
+    "name": "pl_check_and_delete_rowsUpdated",
+    "properties": {
+        "activities": [
+            {
+                "name": "If Condition to check older records",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "Copy data incrementally from bronze to silver",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@greater(activity('Copy data incrementally from bronze to silver').output.rowsRead, 0)",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                        {
+                            "name": "Script to delete older records",
+                            "description": "Script to delete records older than 14 days",
+                            "type": "Script",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "linkedServiceName": {
+                                "referenceName": "AzureSqlDatabaseTarget",
+                                "type": "LinkedServiceReference"
+                            },
+                            "typeProperties": {
+                                "scripts": [
+                                    {
+                                        "type": "NonQuery",
+                                        "text": {
+                                            "value": "DELETE FROM silver.@{pipeline().parameters.tablename} WHERE\n@{pipeline().parameters.timestampColumn} < '@{formatDateTime(adddays(utcNow(), 14), 'yyyy-MM-ddTHH:mm:ss')}'",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                ],
+                                "scriptBlockExecutionTimeout": "02:00:00"
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Lookup last runtime value",
+                "type": "Lookup",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "sqlReaderQuery": {
+                            "value": "SELECT watermark_value from bronze.watermarkTable WHERE tablename = '@{pipeline().parameters.tablename}';",
+                            "type": "Expression"
+                        },
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "dataset": {
+                        "referenceName": "ds_lookup_watermark",
+                        "type": "DatasetReference"
+                    }
+                }
+            },
+            {
+                "name": "Copy data incrementally from bronze to silver",
+                "description": "Copy data incrementally for only last 12 days from bronze to silver",
+                "type": "Copy",
+                "dependsOn": [
+                    {
+                        "activity": "Lookup last runtime value",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "sqlReaderQuery": {
+                            "value": "SELECT * FROM bronze.@{pipeline().parameters.tablename} WHERE\n'@{formatDateTime(activity('Lookup last runtime value').output.firstRow.watermark_value, 'yyyy-MM-ddTHH:mm:ss')}' < @{pipeline().parameters.timestampColumn} AND\n@{pipeline().parameters.timestampColumn} <= '@{formatDateTime(utcNow(), 'yyyy-MM-ddTHH:mm:ss')}'",
+                            "type": "Expression"
+                        },
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "sink": {
+                        "type": "AzureSqlSink",
+                        "writeBehavior": "upsert",
+                        "upsertSettings": {
+                            "useTempDB": true,
+                            "keys": {
+                                "value": "@createArray(pipeline().parameters.keyColumn)",
+                                "type": "Expression"
+                            }
+                        },
+                        "sqlWriterUseTableLock": false,
+                        "disableMetricsCollection": false
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                        "type": "TabularTranslator",
+                        "typeConversion": true,
+                        "typeConversionSettings": {
+                            "allowDataTruncation": true,
+                            "treatBooleanAsNumber": false
+                        }
+                    }
+                },
+                "inputs": [
+                    {
+                        "referenceName": "ds_bronze_to_silver",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "TableName": {
+                                "value": "@pipeline().parameters.tablename",
+                                "type": "Expression"
+                            }
+                        }
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "ds_silver_incremental",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "TableName": {
+                                "value": "@pipeline().parameters.tablename",
+                                "type": "Expression"
+                            }
+                        }
+                    }
+                ]
+            }
+        ],
+        "parameters": {
+            "tablename": {
+                "type": "string"
+            },
+            "timestampColumn": {
+                "type": "string"
+            },
+            "keyColumn": {
+                "type": "array"
+            }
+        },
+        "folder": {
+            "name": "Final Project"
+        },
+        "annotations": []
+    }
+}

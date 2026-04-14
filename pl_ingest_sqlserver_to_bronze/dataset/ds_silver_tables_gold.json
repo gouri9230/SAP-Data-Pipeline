@@ -1,0 +1,24 @@
+{
+    "name": "ds_silver_tables_gold",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "AzureSqlDatabaseTarget",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "TableName": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [],
+        "typeProperties": {
+            "schema": "silver",
+            "table": {
+                "value": "@dataset().TableName",
+                "type": "Expression"
+            }
+        }
+    }
+}

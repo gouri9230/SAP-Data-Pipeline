@@ -1,0 +1,16 @@
+{
+    "name": "ds_lookup_watermark",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_source_AzureSqlDatabase",
+            "type": "LinkedServiceReference"
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [],
+        "typeProperties": {
+            "schema": "bronze",
+            "table": "watermarkTable"
+        }
+    }
+}

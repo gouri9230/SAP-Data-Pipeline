@@ -1,0 +1,12 @@
+{
+    "name": "ls_adls_medallion",
+    "type": "Microsoft.DataFactory/factories/linkedservices",
+    "properties": {
+        "annotations": [],
+        "type": "AzureBlobFS",
+        "typeProperties": {
+            "url": "https://storagesapproject.dfs.core.windows.net/",
+            "encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDVDMTcwMkM4LTE3OEEtNEFFQS05OTZGLUZENzQzMDI2Rjc3NF82NTAyZDM4OC0zNWNjLTRlOWYtOTAyZS05NTA0ZDdhZDk2MGMiDQp9"
+        }
+    }
+}

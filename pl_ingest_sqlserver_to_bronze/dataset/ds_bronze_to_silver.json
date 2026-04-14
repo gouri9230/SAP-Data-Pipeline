@@ -1,0 +1,24 @@
+{
+    "name": "ds_bronze_to_silver",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_source_AzureSqlDatabase",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "TableName": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [],
+        "typeProperties": {
+            "schema": "bronze",
+            "table": {
+                "value": "@dataset().TableName",
+                "type": "Expression"
+            }
+        }
+    }
+}

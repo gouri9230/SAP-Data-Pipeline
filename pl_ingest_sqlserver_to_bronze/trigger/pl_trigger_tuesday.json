@@ -1,0 +1,33 @@
+{
+    "name": "pl_trigger_tuesday",
+    "properties": {
+        "annotations": [],
+        "runtimeState": "Started",
+        "pipelines": [
+            {
+                "pipelineReference": {
+                    "referenceName": "pl_final_flow",
+                    "type": "PipelineReference"
+                }
+            }
+        ],
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+            "recurrence": {
+                "frequency": "Month",
+                "interval": 1,
+                "startTime": "2026-04-12T15:59:00",
+                "endTime": "2026-04-16T15:59:00",
+                "timeZone": "W. Europe Standard Time",
+                "schedule": {
+                    "monthlyOccurrences": [
+                        {
+                            "day": "Tuesday",
+                            "occurrence": 2
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

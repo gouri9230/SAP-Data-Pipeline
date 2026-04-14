@@ -1,0 +1,21 @@
+{
+    "name": "SqlServerOnPremise",
+    "type": "Microsoft.DataFactory/factories/linkedservices",
+    "properties": {
+        "annotations": [],
+        "type": "SqlServer",
+        "typeProperties": {
+            "server": "localhost\\SQLEXPRESS",
+            "database": "mydevazuredb",
+            "encrypt": "mandatory",
+            "trustServerCertificate": true,
+            "authenticationType": "Windows",
+            "userName": "yadny",
+            "encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJlMGQ0ZDI4My1hMDY1LTQwM2YtOTQzNC04NjBjZDY5NDA2YWQiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+        },
+        "connectVia": {
+            "referenceName": "integrationRuntime",
+            "type": "IntegrationRuntimeReference"
+        }
+    }
+}

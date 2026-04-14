@@ -1,0 +1,7 @@
+{
+    "name": "integrationRuntime",
+    "properties": {
+        "type": "SelfHosted",
+        "description": "SHIR for connecting on-premise network"
+    }
+}
