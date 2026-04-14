@@ -1,0 +1,28 @@
+{
+    "name": "ds_source_excelsheet_copy",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_adls_medallion",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "sheetname": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "Excel",
+        "typeProperties": {
+            "sheetName": {
+                "value": "@dataset().sheetname",
+                "type": "Expression"
+            },
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "fileName": "SAP_Table_Replicas.xlsx",
+                "fileSystem": "source"
+            }
+        },
+        "schema": []
+    }
+}
